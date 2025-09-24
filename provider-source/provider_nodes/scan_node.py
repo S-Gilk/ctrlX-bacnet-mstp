@@ -121,16 +121,16 @@ class ScanNode:
         cb: NodeCallback,
     ):
         """__on_read"""
-        print(
-            "__on_read()",
-            "address:",
-            address,
-            "data:",
-            self._data,
-            "userdata:",
-            userdata,
-            flush=True,
-        )
+        # print(
+        #     "__on_read()",
+        #     "address:",
+        #     address,
+        #     "data:",
+        #     self._data,
+        #     "userdata:",
+        #     userdata,
+        #     flush=True,
+        # )
         new_data = self._data
         cb(Result.OK, new_data)
 

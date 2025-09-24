@@ -21,8 +21,8 @@ from ctrlxdatalayer.metadata_utils import (
 )
 
 
-class ConfigParamaterNode:
-    """ConfigParamaterNode"""
+class ConfigParameterNode:
+    """ConfigParameterNode"""
 
     def __init__(self, provider: Provider, nodeAddress: str, typeAddress: str,
                  initialValue: Variant):

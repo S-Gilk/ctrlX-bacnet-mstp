@@ -18,7 +18,7 @@ from helper.ctrlx_datalayer_helper import get_provider
 from provider_nodes.scan_node import ScanNode
 from provider_nodes.device_node import DeviceNode
 from provider_nodes.device_property_node import DevicePropertyNode
-from provider_nodes.config_parameter_node import ConfigParamaterNode
+from provider_nodes.config_parameter_node import ConfigParameterNode
 
 # TODO replace MyProvider nodes with app specific nodes & handlers
     # TODO implement onWrite handler for configuration parameters
@@ -54,10 +54,10 @@ def main():
     with ctrlxdatalayer.system.System("") as datalayer_system:
 
         datalayerNodes = {
-            "configParamaterNodes":list[ConfigParamaterNode],
-            "deviceNodes":list[DeviceNode],
-            "devicePropertyNodes":list[DevicePropertyNode],
-            "scanNodes":list[ScanNode]
+            "configParamaterNodes":[],
+            "deviceNodes":[],
+            "devicePropertyNodes":[],
+            "scanNodes":[]
         }
 
         datalayer_system.start(False)
@@ -77,7 +77,8 @@ def main():
             # Provide scan node
             nodeAddress = ROOT_PATH + "scan"
             print(f"Providing scan node: {nodeAddress}")
-            provide_node(provider, nodeAddress, get_type_address(0), NodeType.SCAN_NODE, set_variant_value(0))
+            node = provide_node(provider, nodeAddress, get_type_address(False), NodeType.SCAN_NODE, set_variant_value(False))
+            datalayerNodes["scanNodes"].append(node)
             # Read in config parameters and provide corresponding datalayer nodes
             # Define the path to your JSON file
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -101,7 +102,8 @@ def main():
                     variantValue = set_variant_value(data[key])
                     nodeAddress = ROOT_PATH + "config/" + key
                     print(f"Providing configuration parameter node: {nodeAddress}")
-                    provide_node(provider, nodeAddress ,typeAddress, NodeType.CONFIG_PARAMETER, variantValue)
+                    node = provide_node(provider, nodeAddress ,typeAddress, NodeType.CONFIG_PARAMETER, variantValue)
+                    datalayerNodes["configParamaterNodes"].append(node)
 
             except FileNotFoundError:
                 print(f"Error: The file '{relative_file_path}' was not found.")
@@ -120,9 +122,12 @@ def main():
                     flush=True)
             
             # Unregister and delete all provided nodes
-            for nodeList in datalayerNodes:
+            for nodeList in datalayerNodes.values():
                 for node in nodeList:
-                    node.unregister_node()
+                    try:
+                        node.unregister_node()
+                    except Exception as e:
+                        print(f"An unexpected error occurred: {e}")
                     del node
 
             print("Stopping ctrlX Data Layer provider:", end=" ", flush=True)
@@ -141,7 +146,7 @@ def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
         case NodeType.SCAN_NODE:
             node = ScanNode(provider, nodeAddress, typeAddress, value)
         case NodeType.CONFIG_PARAMETER:
-            node = ConfigParamaterNode(provider, nodeAddress, typeAddress, value)
+            node = ConfigParameterNode(provider, nodeAddress, typeAddress, value)
         case NodeType.DEVICE_NODE:
             node = DeviceNode(provider, nodeAddress, typeAddress, value)
         case NodeType.DEVICE_PROPERTY_NODE:
@@ -164,10 +169,10 @@ def get_type_address(value):
     typeAddress = None
     if isinstance(value,str):
         typeAddress = "types/datalayer/string"
-    elif isinstance(value,int):
-        typeAddress = "types/datalayer/int32"
     elif isinstance(value,bool):
         typeAddress = "types/datalayer/bool8"
+    elif isinstance(value,int):
+        typeAddress = "types/datalayer/int32"
     elif isinstance(value,float):
         typeAddress = "types/datalayer/float64"
     else:
@@ -180,10 +185,10 @@ def set_variant_value(value):
     variant = Variant()
     if isinstance(value,str):
         variant.set_string(value)
-    elif isinstance(value,int):
-        variant.set_int32(value)
     elif isinstance(value,bool):
         variant.set_bool8(value)
+    elif isinstance(value,int):
+        variant.set_int32(value)
     elif isinstance(value,float):
         variant.set_float64(value)
     else:
