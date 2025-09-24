@@ -1,0 +1,66 @@
+name: ctrlx-bacnet-mstp
+base: core22
+version: '0.1'
+summary: BACnet MS/TP via datalayer
+description: |
+  BACnet MS/TP utilities from bacnet-stack open source. Provide datalayer nodes for interaction.
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: [amd64, arm64]
+    build-for: [amd64]
+  - build-on: [amd64, arm64]
+    build-for: [arm64]
+
+apps:
+  provider:
+    command: bin/main.py
+    plugs:
+      - network
+      - datalayer
+    daemon: simple
+    restart-condition: always
+    passthrough:
+      restart-delay: 30s
+
+  bacwi:
+    command: bin/bacwi
+    plugs: [serial-port, network-bind, process-control, raw-usb]
+  bacrp:
+    command: bin/bacrp
+    plugs: [serial-port, network-bind, process-control, raw-usb]
+  bacwp:
+    command: bin/bacwp
+    plugs: [serial-port, network-bind, process-control, raw-usb]
+  baciam:
+    command: bin/baciam
+    plugs: [serial-port, network-bind, process-control, raw-usb]
+
+parts:
+  provider:
+    plugin: python
+    source: ./provider_source
+    stage-packages:
+      - ctrlx-datalayer
+
+  bacnet-stack:
+    plugin: make
+    source: https://github.com/bacnet-stack/bacnet-stack.git
+    override-build: |
+      make BACNET_PORT=linux BACDL_DEFINE=-DBACDL_MSTP=1
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      cp -r bin/* $SNAPCRAFT_PART_INSTALL/bin/
+
+plugs:
+  datalayer:
+    interface: content
+    content: datalayer
+    target: $SNAP_DATA/.datalayer
+
+lint:
+  ignore:
+    - library:
+      - usr/lib/aarch64-linux-gnu/libcomm_datalayer.so.*
+      - usr/lib/x86_64-linux-gnu/libcomm_datalayer.so.*
