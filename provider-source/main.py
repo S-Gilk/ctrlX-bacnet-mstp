@@ -19,13 +19,7 @@ from provider_nodes.scan_node import ScanNode
 from provider_nodes.device_node import DeviceNode
 from provider_nodes.device_property_node import DevicePropertyNode
 from provider_nodes.config_parameter_node import ConfigParameterNode
-
-# TODO replace MyProvider nodes with app specific nodes & handlers
-    # TODO implement onWrite handler for configuration parameters
-# TODO write logic for node provision structure
-# TODO write logic for env variable load/save from corresponding datalayer nodes
-# --- Load done
-
+from utils import set_env_from_json_object
 
 class NodeType(Enum):
     CONFIG_PARAMETER = 1
@@ -104,6 +98,9 @@ def main():
                     print(f"Providing configuration parameter node: {nodeAddress}")
                     node = provide_node(provider, nodeAddress ,typeAddress, NodeType.CONFIG_PARAMETER, variantValue)
                     datalayerNodes["configParamaterNodes"].append(node)
+                
+                # Set environment variables for json object
+                set_env_from_json_object(data)
 
             except FileNotFoundError:
                 print(f"Error: The file '{relative_file_path}' was not found.")

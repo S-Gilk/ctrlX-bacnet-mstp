@@ -19,6 +19,7 @@ from ctrlxdatalayer.metadata_utils import (
     AllowedOperation,
     ReferenceType,
 )
+from utils import set_env_from_json_object
 
 
 class ConfigParameterNode:
@@ -179,11 +180,13 @@ class ConfigParameterNode:
             elif data.get_type() == VariantType.BOOL8:
                 jsonData[keyString] = data.get_bool8()
             else:
-                print("Data type not implemented for configuration file.")
-
+                raise Exception("Data type not implemented for configuration file.")
+            
             with open(path, 'w') as o:
                 json.dump(jsonData, o, indent=4) # indent=4 makes the JSON output human-readable
-
+            
+            set_env_from_json_object(jsonData)
+            
         except FileNotFoundError:
             print(f"Error: The file '{relative_file_path}' was not found.")
         except json.JSONDecodeError:
@@ -191,11 +194,9 @@ class ConfigParameterNode:
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
-
-
-
         result, self._data = data.clone()
         cb(Result.OK, self._data)
+
 
     def __on_metadata(
         self,
