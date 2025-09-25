@@ -17,6 +17,8 @@ from ctrlxdatalayer.metadata_utils import (
     ReferenceType,
 )
 
+import subprocess
+
 
 class ScanNode:
     """ScanNode"""
@@ -147,10 +149,28 @@ class ScanNode:
             flush=True,
         )
 
-        result = data
         # Need to call the bacnet-stack scan function here. Maybe bacwi? Wait to return until scan is complete??
+        # Example 1: Running a simple command with no arguments
+        #subprocess.run(["ls", "-l"]) 
 
-        cb(Result.OK, result)
+        # Example 2: Running an executable with arguments
+        # Replace 'my_executable' with the actual path to your binary
+        # and 'arg1', 'arg2' with the desired arguments
+        #subprocess.run(["my_executable", "arg1", "arg2"]) 
+
+        # Example 3: Capturing output and errors
+        result = subprocess.run(
+            ["ls", "-l"], 
+            capture_output=True, 
+            text=True,  # Decode output as text
+            check=True  # Raise CalledProcessError if the command returns a non-zero exit code
+        )
+        if(result.stdout):
+            print("Stdout:", result.stdout)
+        if(result.stderr):
+            print("Stderr:", result.stderr)
+
+        cb(Result.OK, data)
 
     def __on_metadata(
         self,
