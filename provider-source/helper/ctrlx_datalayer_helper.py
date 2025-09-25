@@ -3,8 +3,15 @@
 # SPDX-License-Identifier: MIT
 
 import os
+from enum import Enum
 
 import ctrlxdatalayer
+from ctrlxdatalayer.variant import Variant
+
+from provider_nodes.scan_node import ScanNode
+from provider_nodes.device_node import DeviceNode
+from provider_nodes.device_property_node import DevicePropertyNode
+from provider_nodes.config_parameter_node import ConfigParameterNode
 
 """
 This script provides auxiliary methods to create ctrlX Datalayer client and provider connections to ctrlX CORE devices.
@@ -123,3 +130,36 @@ def get_provider(system: ctrlxdatalayer.system.System,
      
     provider.close()
     return None, connection_string
+
+
+class NodeType(Enum):
+    CONFIG_PARAMETER = 1
+    DEVICE_NODE = 2
+    DEVICE_PROPERTY_NODE = 3
+    SCAN_NODE = 4
+
+def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
+                 typeAddress: str, nodeType:NodeType, value:Variant):
+    """provide_node"""
+
+    match nodeType:
+        case NodeType.SCAN_NODE:
+            node = ScanNode(provider, nodeAddress)
+        case NodeType.CONFIG_PARAMETER:
+            node = ConfigParameterNode(provider, nodeAddress, typeAddress, value)
+        case NodeType.DEVICE_NODE:
+            node = DeviceNode(provider, nodeAddress, typeAddress, value)
+        case NodeType.DEVICE_PROPERTY_NODE:
+            node = DevicePropertyNode(provider, nodeAddress, typeAddress, value)
+        case _:
+            return None
+            
+    result = node.register_node()
+    if result != ctrlxdatalayer.variant.Result.OK:
+        print(
+            "ERROR Registering node " + nodeAddress + " failed with:",
+            result,
+            flush=True,
+        )
+
+    return node

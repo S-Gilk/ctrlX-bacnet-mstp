@@ -9,23 +9,12 @@ import signal
 import sys
 import time
 import json
-from enum import Enum
 
 import ctrlxdatalayer
-from ctrlxdatalayer.variant import Result, Variant, VariantType
 
-from helper.ctrlx_datalayer_helper import get_provider
-from provider_nodes.scan_node import ScanNode
-from provider_nodes.device_node import DeviceNode
-from provider_nodes.device_property_node import DevicePropertyNode
-from provider_nodes.config_parameter_node import ConfigParameterNode
-from utils import set_env_from_json_object
+from helper.ctrlx_datalayer_helper import get_provider, provide_node, NodeType
 
-class NodeType(Enum):
-    CONFIG_PARAMETER = 1
-    DEVICE_NODE = 2
-    DEVICE_PROPERTY_NODE = 3
-    SCAN_NODE = 4
+import utils
 
 ROOT_PATH = "bacnet/"
 
@@ -91,15 +80,15 @@ def main():
                 for key in data:
                     print(f"Key: {key}, Value: {data[key]}")
                     value = data[key]
-                    typeAddress = get_type_address(value)
-                    variantValue = set_variant_value(data[key])
+                    typeAddress = utils.get_type_address(value)
+                    variantValue = utils.set_variant_value(data[key])
                     nodeAddress = ROOT_PATH + "config/" + key
                     print(f"Providing configuration parameter node: {nodeAddress}")
                     node = provide_node(provider, nodeAddress ,typeAddress, NodeType.CONFIG_PARAMETER, variantValue)
                     datalayerNodes["configParamaterNodes"].append(node)
                 
                 # Set environment variables for json object
-                set_env_from_json_object(data)
+                utils.set_env_from_json_object(data)
 
             except FileNotFoundError:
                 print(f"Error: The file '{relative_file_path}' was not found.")
@@ -133,64 +122,6 @@ def main():
         # Attention: Doesn't return if any provider or client instance is still running
         stop_ok = datalayer_system.stop(False)
         print("System Stop", stop_ok, flush=True)
-
-def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
-                 typeAddress: str, nodeType:NodeType, value:Variant):
-    """provide_node"""
-
-    match nodeType:
-        case NodeType.SCAN_NODE:
-            node = ScanNode(provider, nodeAddress)
-        case NodeType.CONFIG_PARAMETER:
-            node = ConfigParameterNode(provider, nodeAddress, typeAddress, value)
-        case NodeType.DEVICE_NODE:
-            node = DeviceNode(provider, nodeAddress, typeAddress, value)
-        case NodeType.DEVICE_PROPERTY_NODE:
-            node = DevicePropertyNode(provider, nodeAddress, typeAddress, value)
-        case _:
-            return None
-            
-    result = node.register_node()
-    if result != ctrlxdatalayer.variant.Result.OK:
-        print(
-            "ERROR Registering node " + nodeAddress + " failed with:",
-            result,
-            flush=True,
-        )
-
-    return node
-
-def get_type_address(value):
-    """get_type_address"""
-    typeAddress = None
-    if isinstance(value,str):
-        typeAddress = "types/datalayer/string"
-    elif isinstance(value,bool):
-        typeAddress = "types/datalayer/bool8"
-    elif isinstance(value,int):
-        typeAddress = "types/datalayer/int32"
-    elif isinstance(value,float):
-        typeAddress = "types/datalayer/float64"
-    else:
-        print(f"Type address not implemented: {type(value)}")
-
-    return typeAddress
-
-def set_variant_value(value):
-    """set_variant_value"""
-    variant = Variant()
-    if isinstance(value,str):
-        variant.set_string(value)
-    elif isinstance(value,bool):
-        variant.set_bool8(value)
-    elif isinstance(value,int):
-        variant.set_int32(value)
-    elif isinstance(value,float):
-        variant.set_float64(value)
-    else:
-        print(f"Data type not implemented: {type(value)}")
-
-    return variant
 
 if __name__ == "__main__":
     main()

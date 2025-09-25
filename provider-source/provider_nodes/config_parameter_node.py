@@ -24,7 +24,6 @@ from ctrlxdatalayer.metadata_utils import (
 )
 from utils import set_env_from_json_object
 
-
 class ConfigParameterNode:
     """ConfigParameterNode"""
 
