@@ -18,8 +18,12 @@ from ctrlxdatalayer.metadata_utils import (
 )
 
 from provider_nodes.device_node import DeviceNode
+from defines import ROOT_PATH
+from helper.node_manager import track_node
 
 import subprocess
+
+from defines import NodeType
 
 
 class ScanNode:
@@ -101,7 +105,10 @@ class ScanNode:
 
         # 1-Iterate over text output and parse out devices...
         # 2-Provide datalayer nodes for each device ID
-        self._provider
+        for i in range(5):
+            path = ROOT_PATH + "devices/" + str(i)
+            provide_device_node(self._provider,path)
+
 
         cb(Result.OK, data)
 
@@ -114,3 +121,13 @@ class ScanNode:
         """__on_metadata"""
         print("__on_metadata()", "address:", address, flush=True)
         cb(Result.OK, self._metadata)
+
+
+def provide_device_node(provider:Provider, path:str):
+    node = DeviceNode(provider, path ,None,None)
+    result = node.register_node() 
+    if result != ctrlxdatalayer.variant.Result.OK:
+        print("ERROR Registering node " + path + " failed with:",
+            result,
+            flush=True)
+    track_node(NodeType.DEVICE_NODE, node)

@@ -13,10 +13,10 @@ import json
 import ctrlxdatalayer
 
 from helper.ctrlx_datalayer_helper import get_provider, provide_node, NodeType
+from helper.node_manager import track_node, release_nodes
 
 import utils
-
-ROOT_PATH = "bacnet/"
+from defines import ROOT_PATH
 
 __close_app = False
 
@@ -36,13 +36,6 @@ def main():
 
     with ctrlxdatalayer.system.System("") as datalayer_system:
 
-        datalayerNodes = {
-            "configParamaterNodes":[],
-            "deviceNodes":[],
-            "devicePropertyNodes":[],
-            "scanNodes":[]
-        }
-
         datalayer_system.start(False)
 
         # ip="10.0.2.2", ssl_port=8443: ctrlX COREvirtual with port forwarding and default port mapping
@@ -61,7 +54,8 @@ def main():
             nodeAddress = ROOT_PATH + "scan"
             print(f"Providing scan node: {nodeAddress}")
             node = provide_node(provider, nodeAddress, typeAddress=None, nodeType=NodeType.SCAN_NODE, value=None)
-            datalayerNodes["scanNodes"].append(node)
+            track_node(NodeType.SCAN_NODE, node)
+
             # Read in config parameters and provide corresponding datalayer nodes
             # Define the path to your JSON file
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +79,7 @@ def main():
                     nodeAddress = ROOT_PATH + "config/" + key
                     print(f"Providing configuration parameter node: {nodeAddress}")
                     node = provide_node(provider, nodeAddress ,typeAddress, NodeType.CONFIG_PARAMETER, variantValue)
-                    datalayerNodes["configParamaterNodes"].append(node)
+                    track_node(NodeType.CONFIG_PARAMETER, node)
                 
                 # Set environment variables for json object
                 utils.set_env_from_json_object(data)
@@ -106,14 +100,7 @@ def main():
                 print("WARNING ctrlX Data Layer Provider is disconnected",
                     flush=True)
             
-            # Unregister and delete all provided nodes
-            for nodeList in datalayerNodes.values():
-                for node in nodeList:
-                    try:
-                        node.unregister_node()
-                    except Exception as e:
-                        print(f"An unexpected error occurred: {e}")
-                    del node
+            release_nodes()
 
             print("Stopping ctrlX Data Layer provider:", end=" ", flush=True)
             result = provider.stop()

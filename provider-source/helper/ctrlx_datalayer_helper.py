@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import os
-from enum import Enum
+from defines import NodeType
 
 import ctrlxdatalayer
 from ctrlxdatalayer.variant import Variant
@@ -132,12 +132,7 @@ def get_provider(system: ctrlxdatalayer.system.System,
     return None, connection_string
 
 
-class NodeType(Enum):
-    CONFIG_PARAMETER = 1
-    DEVICE_NODE = 2
-    DEVICE_PROPERTY_NODE = 3
-    SCAN_NODE = 4
-
+# Can't call this from scan_node because it requires the definition of scan_node (circular dependency)
 def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
                  typeAddress: str, nodeType:NodeType, value:Variant):
     """provide_node"""
