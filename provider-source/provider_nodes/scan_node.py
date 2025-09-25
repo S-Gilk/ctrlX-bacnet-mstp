@@ -21,8 +21,7 @@ from ctrlxdatalayer.metadata_utils import (
 class ScanNode:
     """ScanNode"""
 
-    def __init__(self, provider: Provider, nodeAddress: str, typeAddress: str,
-                 initialValue: Variant):
+    def __init__(self, provider: Provider, nodeAddress: str):
         """__init__"""
         self._cbs = ProviderNodeCallbacks(
             self.__on_create,
@@ -36,18 +35,13 @@ class ScanNode:
         self._providerNode = ProviderNode(self._cbs)
         self._provider = provider
         self._nodeAddress = nodeAddress
-        self._typeAddress = typeAddress
-        self._data = initialValue
         self._metadata = self.create_metadata()
 
     def create_metadata(self) -> Variant:
         """create_metadata"""
-        builder = MetadataBuilder(allowed=AllowedOperation.READ
-                                  | AllowedOperation.WRITE)
-        builder = builder.set_display_name(self._nodeAddress)
-        builder = builder.set_node_class(NodeClass.NodeClass.Variable)
-        builder.add_reference(ReferenceType.read(), self._typeAddress)
-        builder.add_reference(ReferenceType.write(), self._typeAddress)
+        builder = MetadataBuilder(AllowedOperation.WRITE)
+        #builder = builder.set_display_name(self._nodeAddress)
+        builder = builder.set_node_class(NodeClass.NodeClass.Method)
         return builder.build()
 
     def register_node(self):
@@ -121,16 +115,16 @@ class ScanNode:
         cb: NodeCallback,
     ):
         """__on_read"""
-        # print(
-        #     "__on_read()",
-        #     "address:",
-        #     address,
-        #     "data:",
-        #     self._data,
-        #     "userdata:",
-        #     userdata,
-        #     flush=True,
-        # )
+        print(
+            "__on_read()",
+            "address:",
+            address,
+            "data:",
+            self._data,
+            "userdata:",
+            userdata,
+            flush=True,
+        )
         new_data = self._data
         cb(Result.OK, new_data)
 
@@ -153,12 +147,10 @@ class ScanNode:
             flush=True,
         )
 
-        if self._data.get_type() != data.get_type():
-            cb(Result.TYPE_MISMATCH, None)
-            return
+        result = data
+        # Need to call the bacnet-stack scan function here. Maybe bacwi? Wait to return until scan is complete??
 
-        result, self._data = data.clone()
-        cb(Result.OK, self._data)
+        cb(Result.OK, result)
 
     def __on_metadata(
         self,

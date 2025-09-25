@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+# This is a container node for device properties. Don't populate properties unless browsed to
+
 import ctrlxdatalayer
 from comm.datalayer import NodeClass
 from ctrlxdatalayer.provider import Provider

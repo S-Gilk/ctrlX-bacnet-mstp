@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+# This is a node for configuration parameters. These are linked to environment variables used in the bacnet-stack executables
+# OnWrite --- Update config/env.json and set corresponding environment variable
+
 import os
 import json
 
@@ -48,7 +51,7 @@ class ConfigParameterNode:
         """create_metadata"""
         builder = MetadataBuilder(allowed=AllowedOperation.READ
                                   | AllowedOperation.WRITE | AllowedOperation.BROWSE)
-        builder = builder.set_display_name(self._nodeAddress)
+        #builder = builder.set_display_name(self._nodeAddress)
         builder = builder.set_node_class(NodeClass.NodeClass.Variable)
         builder.add_reference(ReferenceType.read(), self._typeAddress)
         builder.add_reference(ReferenceType.write(), self._typeAddress)
@@ -186,7 +189,7 @@ class ConfigParameterNode:
                 json.dump(jsonData, o, indent=4) # indent=4 makes the JSON output human-readable
             
             set_env_from_json_object(jsonData)
-            
+
         except FileNotFoundError:
             print(f"Error: The file '{relative_file_path}' was not found.")
         except json.JSONDecodeError:

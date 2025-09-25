@@ -71,7 +71,7 @@ def main():
             # Provide scan node
             nodeAddress = ROOT_PATH + "scan"
             print(f"Providing scan node: {nodeAddress}")
-            node = provide_node(provider, nodeAddress, get_type_address(False), NodeType.SCAN_NODE, set_variant_value(False))
+            node = provide_node(provider, nodeAddress, typeAddress=None, nodeType=NodeType.SCAN_NODE, value=None)
             datalayerNodes["scanNodes"].append(node)
             # Read in config parameters and provide corresponding datalayer nodes
             # Define the path to your JSON file
@@ -86,7 +86,6 @@ def main():
                 # Now 'data' is a Python dictionary containing the JSON content
                 print("JSON data loaded successfully:")
                 print(data)
-                print(f"Type of loaded data: {type(data)}")
 
                 # Add existing config parameters as nodes
                 for key in data:
@@ -141,7 +140,7 @@ def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
 
     match nodeType:
         case NodeType.SCAN_NODE:
-            node = ScanNode(provider, nodeAddress, typeAddress, value)
+            node = ScanNode(provider, nodeAddress)
         case NodeType.CONFIG_PARAMETER:
             node = ConfigParameterNode(provider, nodeAddress, typeAddress, value)
         case NodeType.DEVICE_NODE:
