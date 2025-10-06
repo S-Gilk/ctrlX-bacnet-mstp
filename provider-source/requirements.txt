@@ -2,3 +2,4 @@ autopep8
 isort
 ctrlx-datalayer<=3.5
 ctrlx-fbs
+bacpypes==0.18.6

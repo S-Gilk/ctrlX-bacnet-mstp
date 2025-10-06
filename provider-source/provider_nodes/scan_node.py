@@ -21,6 +21,8 @@ from provider_nodes.device_node import DeviceNode
 from defines import ROOT_PATH
 from helper.node_manager import track_node
 
+from mstp_services import whois, iam
+
 import subprocess
 
 from defines import NodeType
@@ -92,16 +94,24 @@ class ScanNode:
         #subprocess.run(["my_executable", "arg1", "arg2"]) 
 
         # Example 3: Capturing output and errors
-        result = subprocess.run(
-            ["ls", "-l"], 
-            capture_output=True, 
-            text=True,  # Decode output as text
-            check=True  # Raise CalledProcessError if the command returns a non-zero exit code
-        )
-        if(result.stdout):
-            print("Stdout:", result.stdout)
-        if(result.stderr):
-            print("Stderr:", result.stderr)
+        # result = subprocess.run(
+        #     ["ls", "-l"], 
+        #     capture_output=True, 
+        #     text=True,  # Decode output as text
+        #     check=True  # Raise CalledProcessError if the command returns a non-zero exit code
+        # )
+        # if(result.stdout):
+        #     print("Stdout:", result.stdout)
+        # if(result.stderr):
+        #     print("Stderr:", result.stderr)
+
+        # WHO-IS / I-AM
+        devices = ms.whois(INI, timeout=3.0)
+        print(json.dumps({"whois": devices}))
+
+        sent = ms.iam(INI)
+        print(json.dumps({"iam": sent}))
+
 
         # 1-Iterate over text output and parse out devices...
         # 2-Provide datalayer nodes for each device ID

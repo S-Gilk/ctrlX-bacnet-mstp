@@ -18,8 +18,9 @@ from helper.node_manager import track_node, release_nodes
 import utils
 from defines import ROOT_PATH
 
-__close_app = False
+INI = "/ctrlx-bacnet-mstp/config/bc.ini"  # stable path exposed by layout
 
+__close_app = False
 
 def handler(signum, frame):
     """handler"""
@@ -40,7 +41,7 @@ def main():
 
         # ip="10.0.2.2", ssl_port=8443: ctrlX COREvirtual with port forwarding and default port mapping
         provider, connection_string = get_provider(datalayer_system,
-                                                   ip="10.0.2.2",
+                                                   ip="192.168.1.101",
                                                    ssl_port=8443)
         if provider is None:
             print("ERROR Connecting", connection_string, "failed.", flush=True)

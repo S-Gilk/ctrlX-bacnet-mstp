@@ -1,0 +1,72 @@
+name: ctrlx-bacnet-mstp
+base: core22
+version: "0.1"
+summary: BACnet MS/TP provider using Misty + BACpypes
+description: |
+  ctrlX Data Layer provider that talks BACnet MS/TP via Misty + BACpypes
+
+grade: stable
+confinement: strict
+
+# Present a stable, writable config path inside the sandbox
+layout:
+  /ctrlx-bacnet-mstp/config:
+    bind: $SNAP_COMMON/config
+
+apps:
+  provider:
+    daemon: simple
+    command: bin/main.py
+    plugs:
+      - network
+      - datalayer
+      - network-bind
+      - serial-port
+      - raw-usb
+    restart-condition: always
+    passthrough:
+      restart-delay: 30s
+    environment:
+      # make Python see both site-packages and your misty/app sources
+      PYTHONPATH: "$SNAP/lib/python3.10/site-packages:$SNAP/misty/app:$PYTHONPATH"
+      # ensure the native agent can be found at runtime
+      LD_LIBRARY_PATH: "$SNAP/misty/mstplib:$LD_LIBRARY_PATH"
+
+parts:
+  provider:
+    plugin: python
+    source: ./provider-source
+    requirements: requirements.txt
+    stage-packages:
+      - ctrlx-datalayer
+
+  # Minimal Misty payload: just mstp_services.py + mstplib package + built .so
+  misty:
+    plugin: dump
+    source: ./misty
+    stage:
+      - misty/app/mstp_services.py
+      - misty/mstplib/__init__.py
+      - misty/mstplib/libmstp_agent_linux.so
+    organize:
+      misty/app/mstp_services.py: misty/app/mstp_services.py
+      misty/mstplib/__init__.py:   misty/mstplib/__init__.py
+      misty/mstplib/libmstp_agent_linux.so: misty/mstplib/libmstp_agent_linux.so
+    override-build: |
+      set -e
+      # Build the native agent in place if it doesn't exist yet
+      if [ ! -f "$SNAPCRAFT_PART_SRC/mstplib/libmstp_agent_linux.so" ]; then
+        make -C "$SNAPCRAFT_PART_SRC/mstplib" clean_build
+      fi
+      snapcraftctl build
+
+  # Ship a default bc.ini and an install hook that seeds SNAP_COMMON/config
+  config:
+    plugin: dump
+    source: .
+    stage:
+      - bc.ini
+      - snap/hooks/install
+    organize:
+      bc.ini:                         defaults/bc.ini
+      snap/hooks/install:             snap/hooks/install

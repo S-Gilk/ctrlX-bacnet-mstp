@@ -1,0 +1,9 @@
+comm
+common
+motion
+networkmanager
+packagemanager
+script
+storage
+systeminfo
+web
