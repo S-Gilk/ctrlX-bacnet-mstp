@@ -12,11 +12,11 @@ import json
 
 import ctrlxdatalayer
 
-from helper.ctrlx_datalayer_helper import get_provider, provide_node, NodeType
+from helper.ctrlx_datalayer_helper import get_provider, provide_node
 from helper.node_manager import track_node, release_nodes
 
 import utils
-from defines import ROOT_PATH
+from defines import NodeType, ROOT_PATH
 
 INI = "/ctrlx-bacnet-mstp/config/bc.ini"  # stable path exposed by layout
 

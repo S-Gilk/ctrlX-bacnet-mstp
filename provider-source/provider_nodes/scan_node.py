@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Bosch Rexroth AG
 #
 # SPDX-License-Identifier: MIT
+import json
 
 import ctrlxdatalayer
 from comm.datalayer import NodeClass
@@ -22,8 +23,6 @@ from defines import ROOT_PATH
 from helper.node_manager import track_node
 
 from mstp_services import whois, iam
-
-import subprocess
 
 from defines import NodeType
 
@@ -63,7 +62,6 @@ class ScanNode:
         """unregister_node"""
         self._provider.unregister_node(self._nodeAddress)
         self._metadata.close()
-        self._data.close()
 
     def __on_write(
         self,
@@ -84,32 +82,11 @@ class ScanNode:
             flush=True,
         )
 
-        # Need to call the bacnet-stack scan function here. Maybe bacwi? Wait to return until scan is complete??
-        # Example 1: Running a simple command with no arguments
-        #subprocess.run(["ls", "-l"]) 
-
-        # Example 2: Running an executable with arguments
-        # Replace 'my_executable' with the actual path to your binary
-        # and 'arg1', 'arg2' with the desired arguments
-        #subprocess.run(["my_executable", "arg1", "arg2"]) 
-
-        # Example 3: Capturing output and errors
-        # result = subprocess.run(
-        #     ["ls", "-l"], 
-        #     capture_output=True, 
-        #     text=True,  # Decode output as text
-        #     check=True  # Raise CalledProcessError if the command returns a non-zero exit code
-        # )
-        # if(result.stdout):
-        #     print("Stdout:", result.stdout)
-        # if(result.stderr):
-        #     print("Stderr:", result.stderr)
-
         # WHO-IS / I-AM
-        devices = ms.whois(INI, timeout=3.0)
+        devices = whois(INI, timeout=3.0)
         print(json.dumps({"whois": devices}))
 
-        sent = ms.iam(INI)
+        sent = iam(INI)
         print(json.dumps({"iam": sent}))
 
 

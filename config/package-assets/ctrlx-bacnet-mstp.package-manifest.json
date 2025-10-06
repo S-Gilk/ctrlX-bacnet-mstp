@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.boschrexroth.com/ctrlx-automation/ctrlx-core/apps/package-manifest/package-manifest.v1.4.schema.json",
+  "version": "1.0.0",
+  "id": "ctrlx-bacnet-mstp",
+  "configuration": {
+    "appDirectories": [
+      {
+        "name": "BACnet",
+        "description": "BACnet MS/TP configuration",
+        "icon": "bosch-ic-directory",
+        "copyOnLoad": true
+      }
+    ]
+  }
+}
