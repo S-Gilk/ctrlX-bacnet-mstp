@@ -84,5 +84,5 @@ class DeviceNode:
         cb: NodeCallback,
     ):
         """__on_metadata"""
-        print("__on_metadata()", "address:", address, flush=True)
+        # print("__on_metadata()", "address:", address, flush=True)
         cb(Result.OK, self._metadata)

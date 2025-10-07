@@ -44,8 +44,7 @@ def setup_packages():
             'bin/WhoIsIAm',
             'bin/bc',
             'bin/bs',
-            'bin/cp_ini',
-            'app/mstp_services.py'
+            'bin/cp_ini'
         ],
         long_description=long_description,
         license='GNU General Public License v2.0',

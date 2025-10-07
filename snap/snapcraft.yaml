@@ -25,9 +25,11 @@ apps:
       - serial-port
       - raw-usb
       - active-solution
+    slots:
+      - package-assets
     restart-condition: always
     passthrough:
-      restart-delay: 30s
+      restart-delay: 10s
 
 parts:
   # ctrlX provider (Python app + deps)
@@ -44,6 +46,38 @@ parts:
     build-packages:
       - build-essential
       - python3-dev
+    #   - make
+    # build-attributes: [no-patchelf]
+    # override-pull: |
+    #   set -eux
+    #   snapcraftctl pull
+    #   # ensure no prebuilt/foreign .so sneaks in
+    #   find "$SNAPCRAFT_PART_SRC" -name 'libmstp_agent_linux.so' -delete || true
+    # override-build: |
+    #   set -eux
+
+    #   # 1) Let the python plugin install Misty (may or may not include the .so)
+    #   snapcraftctl build
+
+    #   # 2) If the .so isn't in site-packages yet, build it and install it there
+    #   PYV=3.10  # core22
+    #   TARGET="$SNAPCRAFT_PART_INSTALL/usr/lib/python${PYV}/site-packages/misty/mstplib/libmstp_agent_linux.so"
+    #   if [ ! -f "$TARGET" ]; then
+    #     echo "MSTP agent missing after pip install — building via make and installing..."
+    #     # prefer source dir; fall back to build dir
+    #     SRC_DIR="$SNAPCRAFT_PART_SRC/misty/mstplib"
+    #     [ -d "$SRC_DIR" ] || SRC_DIR="$SNAPCRAFT_PART_BUILD/misty/mstplib"
+
+    #     make -C "$SRC_DIR" clean || true
+    #     make -C "$SRC_DIR"
+
+    #     install -Dm644 "$SRC_DIR/libmstp_agent_linux.so" "$TARGET"
+    #   fi
+
+    #   # 3) Show what we installed (handy in logs)
+    #   ls -l "$TARGET" || true
+    #   file "$TARGET" || true
+
     # Prevent duplicate package staging
     stage:
       - -lib/python3.10/site-packages/pip*
@@ -63,6 +97,14 @@ parts:
     organize:
       'package-assets/*': package-assets/${CRAFT_PROJECT_NAME}/
 
+slots:
+  package-assets:
+    interface: content
+    content: package-assets
+    source:
+      read:
+        - $SNAP/package-assets/${CRAFT_PROJECT_NAME}
+
 plugs:
   datalayer:
     interface: content
@@ -73,7 +115,6 @@ plugs:
     interface: content
     content: solutions
     target: $SNAP_COMMON/solutions
-
 
 lint:
   ignore:

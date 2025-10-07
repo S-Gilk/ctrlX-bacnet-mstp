@@ -3,3 +3,5 @@
 stage/
 prime/
 parts/
+*.egg-info
+.venv/

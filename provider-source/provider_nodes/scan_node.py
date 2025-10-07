@@ -19,12 +19,11 @@ from ctrlxdatalayer.metadata_utils import (
 )
 
 from provider_nodes.device_node import DeviceNode
-from defines import ROOT_PATH
 from helper.node_manager import track_node
 
-from mstp_services import whois, iam
+from helper.mstp_services import whois, iam
 
-from defines import NodeType
+from defines import NodeType, INI_PATH, ROOT_PATH
 
 
 class ScanNode:
@@ -50,7 +49,7 @@ class ScanNode:
         """create_metadata"""
         builder = MetadataBuilder(AllowedOperation.WRITE)
         #builder = builder.set_display_name(self._nodeAddress)
-        builder = builder.set_node_class(NodeClass.NodeClass.Method)
+        builder = builder.set_node_class(NodeClass.NodeClass.Program)
         return builder.build()
 
     def register_node(self):
@@ -83,10 +82,10 @@ class ScanNode:
         )
 
         # WHO-IS / I-AM
-        devices = whois(INI, timeout=3.0)
+        devices = whois(INI_PATH, timeout=3.0)
         print(json.dumps({"whois": devices}))
 
-        sent = iam(INI)
+        sent = iam(INI_PATH)
         print(json.dumps({"iam": sent}))
 
 
@@ -106,7 +105,7 @@ class ScanNode:
         cb: NodeCallback,
     ):
         """__on_metadata"""
-        print("__on_metadata()", "address:", address, flush=True)
+        # print("__on_metadata()", "address:", address, flush=True)
         cb(Result.OK, self._metadata)
 
 

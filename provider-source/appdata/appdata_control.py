@@ -3,16 +3,19 @@
 # SPDX-License-Identifier: MIT
 
 import os
+import shutil
 import platform
 import datetime
 import json
 import time
 
+from defines import INI_PATH
+
 
 class AppDataControl():
     """AppDataControl
     """
-    def __init__(self, storage_folder_name="AppDataSamplePy", storage_file_name="appdata.json"):
+    def __init__(self, storage_folder_name="BACnet", storage_file_name="appdata.json"):
         """__init__
         """
         # The name of the application storage folder
@@ -45,6 +48,27 @@ class AppDataControl():
             "timestamp": "",
             "secretNumber": ""
         }
+
+    def copy_default_ini(self):
+        # Path to writable bc.ini
+        self.bc_ini_path = os.path.join(self.storage_location, INI_PATH)
+
+        # Path to read-only default inside the snap
+        snap_path = os.environ.get("SNAP")
+        if snap_path:
+            default_ini = os.path.join(snap_path, INI_PATH)
+            # copy once if not already present
+            if not os.path.exists(self.bc_ini_path) and os.path.exists(default_ini):
+                try:
+                    print(f"INFO Copying default INI from {default_ini} → {self.bc_ini_path}", flush=True)
+                    shutil.copyfile(default_ini, self.bc_ini_path)
+                except Exception as e:
+                    print(f"ERROR Copying default INI failed: {e}", flush=True)
+            elif not os.path.exists(default_ini):
+                print(f"WARN Default INI not found at {default_ini}", flush=True)
+        else:
+            print("WARN SNAP env not set; skipping default INI copy", flush=True)
+
 
     def load(self):
         """load

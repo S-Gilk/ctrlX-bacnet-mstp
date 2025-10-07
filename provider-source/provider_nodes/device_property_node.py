@@ -121,16 +121,16 @@ class DevicePropertyNode:
         cb: NodeCallback,
     ):
         """__on_read"""
-        print(
-            "__on_read()",
-            "address:",
-            address,
-            "data:",
-            self._data,
-            "userdata:",
-            userdata,
-            flush=True,
-        )
+        # print(
+        #     "__on_read()",
+        #     "address:",
+        #     address,
+        #     "data:",
+        #     self._data,
+        #     "userdata:",
+        #     userdata,
+        #     flush=True,
+        # )
         new_data = self._data
         cb(Result.OK, new_data)
 
@@ -167,5 +167,5 @@ class DevicePropertyNode:
         cb: NodeCallback,
     ):
         """__on_metadata"""
-        print("__on_metadata()", "address:", address, flush=True)
+        # print("__on_metadata()", "address:", address, flush=True)
         cb(Result.OK, self._metadata)
