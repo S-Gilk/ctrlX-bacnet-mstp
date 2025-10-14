@@ -5,6 +5,8 @@ summary: BACnet MS/TP datalayer interface
 description: |
   ctrlX Data Layer node provider for BACnet MS/TP devices
 
+# NOTE --- Must build mstplib shared object manually prior to snapping
+
 grade: stable
 confinement: strict
 
@@ -46,37 +48,6 @@ parts:
     build-packages:
       - build-essential
       - python3-dev
-    #   - make
-    # build-attributes: [no-patchelf]
-    # override-pull: |
-    #   set -eux
-    #   snapcraftctl pull
-    #   # ensure no prebuilt/foreign .so sneaks in
-    #   find "$SNAPCRAFT_PART_SRC" -name 'libmstp_agent_linux.so' -delete || true
-    # override-build: |
-    #   set -eux
-
-    #   # 1) Let the python plugin install Misty (may or may not include the .so)
-    #   snapcraftctl build
-
-    #   # 2) If the .so isn't in site-packages yet, build it and install it there
-    #   PYV=3.10  # core22
-    #   TARGET="$SNAPCRAFT_PART_INSTALL/usr/lib/python${PYV}/site-packages/misty/mstplib/libmstp_agent_linux.so"
-    #   if [ ! -f "$TARGET" ]; then
-    #     echo "MSTP agent missing after pip install — building via make and installing..."
-    #     # prefer source dir; fall back to build dir
-    #     SRC_DIR="$SNAPCRAFT_PART_SRC/misty/mstplib"
-    #     [ -d "$SRC_DIR" ] || SRC_DIR="$SNAPCRAFT_PART_BUILD/misty/mstplib"
-
-    #     make -C "$SRC_DIR" clean || true
-    #     make -C "$SRC_DIR"
-
-    #     install -Dm644 "$SRC_DIR/libmstp_agent_linux.so" "$TARGET"
-    #   fi
-
-    #   # 3) Show what we installed (handy in logs)
-    #   ls -l "$TARGET" || true
-    #   file "$TARGET" || true
 
     # Prevent duplicate package staging
     stage:

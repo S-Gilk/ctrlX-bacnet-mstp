@@ -1,0 +1,68 @@
+{
+  "analogInput": {
+    "access": "R",
+    "bacnet_type": "REAL",
+    "datalayer_type": "FLOAT32",
+    "uninitialized_default": 0.0
+  },
+  "analogOutput": {
+    "access": "R/W",
+    "bacnet_type": "REAL",
+    "datalayer_type": "FLOAT32",
+    "uninitialized_default": 0.0
+  },
+  "analogValue": {
+    "access": "R/W",
+    "bacnet_type": "REAL",
+    "datalayer_type": "FLOAT32",
+    "uninitialized_default": 0.0
+  },
+  "binaryInput": {
+    "access": "R",
+    "bacnet_type": "BOOLEAN",
+    "datalayer_type": "BOOL8",
+    "uninitialized_default": false
+  },
+  "binaryOutput": {
+    "access": "R/W",
+    "bacnet_type": "BOOLEAN",
+    "datalayer_type": "BOOL8",
+    "uninitialized_default": false
+  },
+  "binaryValue": {
+    "access": "R/W",
+    "bacnet_type": "BOOLEAN",
+    "datalayer_type": "BOOL8",
+    "uninitialized_default": false
+  },
+  "multiStateInput": {
+    "access": "R",
+    "bacnet_type": "UNSIGNED",
+    "datalayer_type": "UINT32",
+    "uninitialized_default": 0
+  },
+  "multiStateOutput": {
+    "access": "R/W",
+    "bacnet_type": "UNSIGNED",
+    "datalayer_type": "UINT32",
+    "uninitialized_default": 0
+  },
+  "multiStateValue": {
+    "access": "R/W",
+    "bacnet_type": "UNSIGNED",
+    "datalayer_type": "UINT32",
+    "uninitialized_default": 0
+  },
+  "accumulator": {
+    "access": "R/W",
+    "bacnet_type": "UNSIGNED",
+    "datalayer_type": "UINT32",
+    "uninitialized_default": 0
+  },
+  "device": {
+    "access": "R",
+    "bacnet_type": "STRING",
+    "datalayer_type": "STRING",
+    "uninitialized_default": "null"
+  }
+}

@@ -8,10 +8,10 @@ from defines import NodeType
 import ctrlxdatalayer
 from ctrlxdatalayer.variant import Variant
 
-from provider_nodes.scan_node import ScanNode
-from provider_nodes.device_node import DeviceNode
+from provider_nodes.whois_scan_node import WhoIsScanNode
+from provider_nodes.discover_scan_node import DiscoverScanNode
 from provider_nodes.device_property_node import DevicePropertyNode
-from provider_nodes.config_parameter_node import ConfigParameterNode
+from provider_nodes.folder_node import FolderNode
 
 """
 This script provides auxiliary methods to create ctrlX Datalayer client and provider connections to ctrlX CORE devices.
@@ -134,18 +134,18 @@ def get_provider(system: ctrlxdatalayer.system.System,
 
 # Can't call this from scan_node because it requires the definition of scan_node (circular dependency)
 def provide_node(provider: ctrlxdatalayer.provider, nodeAddress: str,
-                 typeAddress: str, nodeType:NodeType, value:Variant):
+                 typeAddress: str, nodeType:NodeType, value:Variant, readOnly:bool = True):
     """provide_node"""
 
     match nodeType:
-        case NodeType.SCAN_NODE:
-            node = ScanNode(provider, nodeAddress)
-        case NodeType.CONFIG_PARAMETER:
-            node = ConfigParameterNode(provider, nodeAddress, typeAddress, value)
-        case NodeType.DEVICE_NODE:
-            node = DeviceNode(provider, nodeAddress, typeAddress, value)
+        case NodeType.WHO_IS_SCAN_NODE:
+            node = WhoIsScanNode(provider, nodeAddress)
+        case NodeType.DISCOVER_SCAN_NODE:
+            node = DiscoverScanNode(provider, nodeAddress)
         case NodeType.DEVICE_PROPERTY_NODE:
-            node = DevicePropertyNode(provider, nodeAddress, typeAddress, value)
+            node = DevicePropertyNode(provider, nodeAddress, typeAddress, value, readOnly)
+        case NodeType.FOLDER_NODE:
+            node = FolderNode(provider, nodeAddress)
         case _:
             return None
             

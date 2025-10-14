@@ -17,7 +17,7 @@ def main():
         devid = devices[0]["device_instance"]
 
         # read device name
-        rp = ms.read(INI, mac, "device", devid, "objectName")
+        rp = ms.read_property(INI, mac, "device", devid, "objectName")
         print(json.dumps({"read_objectName": rp}))
 
         # discover object list
@@ -25,7 +25,7 @@ def main():
         # print(json.dumps({"discover": disc}))
 
         # write example (change as appropriate)
-        wp = ms.write(INI, mac, "binaryOutput", 1, "presentValue", "inactive", priority=8)
+        wp = ms.write_property(INI, mac, "binaryOutput", 1, "presentValue", "inactive", priority=8)
         print(json.dumps({"write": wp}))
 
     # loop if you want a service cadence

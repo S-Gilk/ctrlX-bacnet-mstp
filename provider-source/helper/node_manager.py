@@ -1,22 +1,22 @@
 from defines import NodeType
 
 datalayerNodes = {
-    "configParameterNodes":[],
-    "deviceNodes":[],
+    "discoverNodes":[],
     "devicePropertyNodes":[],
-    "scanNodes":[]
+    "whoIsNodes":[],
+    "folderNodes":[]
 }
 
 def get_type_string_from_enum(type:NodeType):
     match type:
-        case NodeType.CONFIG_PARAMETER:
-            return "configParameterNodes"
-        case NodeType.DEVICE_NODE:
-            return "deviceNodes"
+        case NodeType.DISCOVER_SCAN_NODE:
+            return "discoverNodes"
         case NodeType.DEVICE_PROPERTY_NODE:
             return "devicePropertyNodes"
-        case NodeType.SCAN_NODE:
-            return "scanNodes"
+        case NodeType.WHO_IS_SCAN_NODE:
+            return "whoIsNodes"
+        case NodeType.FOLDER_NODE:
+            return "folderNodes"
 
 def track_node(type:NodeType, node):
     typeString = get_type_string_from_enum(type)

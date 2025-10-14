@@ -9,7 +9,7 @@ import datetime
 import json
 import time
 
-from defines import INI_PATH
+from defines import DEFAULT_INI_PATH, DEFAULT_BACNET_DEFINES_PATH
 
 
 class AppDataControl():
@@ -49,14 +49,17 @@ class AppDataControl():
             "secretNumber": ""
         }
 
-    def copy_default_ini(self):
+    def copy_default_appdata(self):
         # Path to writable bc.ini
-        self.bc_ini_path = os.path.join(self.storage_location, INI_PATH)
+        self.bc_ini_path = os.path.join(self.storage_location, DEFAULT_INI_PATH)
+
+        # Path to writable bacnet_defines.json
+        self.bacnet_defines_path = os.path.join(self.storage_location, DEFAULT_BACNET_DEFINES_PATH )
 
         # Path to read-only default inside the snap
         snap_path = os.environ.get("SNAP")
         if snap_path:
-            default_ini = os.path.join(snap_path, INI_PATH)
+            default_ini = os.path.join(snap_path, DEFAULT_INI_PATH)
             # copy once if not already present
             if not os.path.exists(self.bc_ini_path) and os.path.exists(default_ini):
                 try:
@@ -68,6 +71,22 @@ class AppDataControl():
                 print(f"WARN Default INI not found at {default_ini}", flush=True)
         else:
             print("WARN SNAP env not set; skipping default INI copy", flush=True)
+
+        if snap_path:
+            default_bacnet_defines = os.path.join(snap_path, DEFAULT_BACNET_DEFINES_PATH)
+            # copy once if not already present
+            if not os.path.exists(self.bacnet_defines_path) and os.path.exists(default_bacnet_defines):
+                try:
+                    print(f"INFO Copying default BACNET_DEFINES from {default_bacnet_defines} → {self.bacnet_defines_path}", flush=True)
+                    shutil.copyfile(default_bacnet_defines, self.bacnet_defines_path)
+                except Exception as e:
+                    print(f"ERROR Copying default BACNET_DEFINES failed: {e}", flush=True)
+            elif not os.path.exists(default_bacnet_defines):
+                print(f"WARN Default BACNET_DEFINES not found at {default_bacnet_defines}", flush=True)
+        else:
+            print("WARN SNAP env not set; skipping default BACNET_DEFINES copy", flush=True)
+
+
 
 
     def load(self):
