@@ -127,10 +127,10 @@ class DiscoverScanNode:
         deviceID = int(deviceID_s)
         # Get MAC from device cache
         mac = get_mac_for_device(deviceID)
-        objects = discover(ACTIVE_INI_PATH, mac, deviceID, timeout=5.0)
-        print(json.dumps({"discover": objects}))
+        objects = discover(ACTIVE_INI_PATH, mac, deviceID)
+        print(json.dumps({"discover": objects}), flush=True)
         for object in objects['object_list']:
-            print(object)
+            # print(object, flush=True)
             self.provide_object_node(object)
 
     def provide_object_node(self, object):
@@ -138,10 +138,16 @@ class DiscoverScanNode:
             # Remove scanNode path
             node_heirarchy.pop(-1)
             separator = "/"
-            object_path = separator.join(node_heirarchy)+"/" + str(object[0]) + "/" + str(object[1])
-            print(object_path)
+            #object_path = separator.join(node_heirarchy)+"/" + str(object[0]) + "/" + str(object[1])
+            object_path = separator.join(node_heirarchy)+"/" + str(object[0]) + "/" + str(object[1]) + "/presentValue" 
+            print(object_path, flush=True)
+            typeAddressString = get_datalayer_type(object[0])
+            # Do not provide nodes for non-implemented object types
+            if(typeAddressString is None):
+                print("Object type not implemented: " + str(object[0]) + "\nNode not provided: " + object_path, flush=True)
+                return           
+            
             readOnly = not is_writable(object[0], 'presentValue')
-            typeAddressString = get_datalayer_type(object[0])  
             typeAddress = get_type_address_from_string(typeAddressString)
             defaultValue = get_uninitialized_default(object[0])
             variant = set_variant_value(defaultValue)

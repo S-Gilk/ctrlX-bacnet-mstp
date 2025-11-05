@@ -294,7 +294,9 @@ def load_bc_ini(path: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         _baudrate    = opt(sect_mstp, "_baudrate", "baudrate", "baud", cast=int, default=38400),
         _max_masters = opt(sect_mstp, "_max_masters", "max_masters", "maxmasters", cast=int, default=127),
         _maxinfo     = opt(sect_mstp, "_maxinfo", "max_info_frames", "maxinfo", "maxinfoframes", cast=int, default=1),
-        _mstp_dir    = opt(sect_mstp, "_mstp_dir", "mstp_dir", "mstp_directory", default="/tmp")
+        _mstp_dir    = opt(sect_mstp, "_mstp_dir", "mstp_dir", "mstp_directory", default="/tmp"),
+        _whois_timeout = opt(sect_mstp, "_whois_timeout", "whois_timeout", cast=float, default=30.0),
+        _discover_timeout = opt(sect_mstp, "_discover_timeout", "discover_timeout", cast=float, default=30.0)
     )
     if mstp["_address"] is None or mstp["_interface"] is None:
         raise KeyError("Missing 'address' or 'interface' in your [BACpypes]/[mstp] section.")
@@ -377,6 +379,7 @@ class _Core:
                 return
             mstp, dev = load_bc_ini(ini_path)
             ldo = LocalDeviceObject(**dev, **mstp)
+            cls._config = mstp
             cls._app = _MSTPApp(ldo, Address(mstp["_address"]))
 
             enable_sleeping()
@@ -393,7 +396,7 @@ class _Core:
 
 # ------------------------- PUBLIC API -------------------------
 
-def whois(ini_path: str, timeout: float = 3.0,
+def whois(ini_path: str,
           dest: Optional[str] = None,
           low_limit: Optional[int] = None,
           high_limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -403,6 +406,8 @@ def whois(ini_path: str, timeout: float = 3.0,
     """
     _Core.ensure_started(ini_path)
     app = _Core.app()
+    timeout = float(getattr(_Core, "_config", {}).get("_whois_timeout", 30.0))
+    print("who-is timeout:" + str(timeout), flush=True)
 
     # drain queue before we start (fresh results)
     try:
@@ -600,14 +605,16 @@ def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
     return {"ack": True}
 
 
-def discover(ini_path: str, addr_mac: int, device_id: int, timeout: float = 5.0) -> Dict[str, Any]:
+def discover(ini_path: str, addr_mac: int, device_id: int) -> Dict[str, Any]:
     """
     Walk a device's objectList via repeated ReadProperty requests.
     Returns: {"object_list": [...]} or {"error": "...", "object_list": [...]}
     """
     _Core.ensure_started(ini_path)
     app = _Core.app()
+    timeout = float(getattr(_Core, "_config", {}).get("_discover_timeout", 30.0))
 
+    print("discover timeout:" + str(timeout), flush=True)
     results: List[Any] = []
     index_queue: List[int] = [0]   # start with index 0 to get count
     state = {"first": True}        # avoid nonlocal scoping issues

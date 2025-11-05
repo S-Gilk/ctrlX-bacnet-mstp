@@ -160,14 +160,15 @@ class DevicePropertyNode:
         # Alwars reading presentValue of property. There are other fields as well (ie. units)
         response = read_property(ACTIVE_INI_PATH, mac, object_type, object_instance, "presentValue")
         # print(response,flush=True)
-        raw_value = response['value']
-        parsed_value = parse_present_value(object_type, raw_value)
-        # print(parsed_value, flush=True)
-        variant_type = self._data.get_type()
-        set_variant_value_by_type(self._data, variant_type, parsed_value)
-
-        new_data = self._data
-        cb(Result.OK, new_data)
+        if 'value' in response:
+            raw_value = response['value']
+            parsed_value = parse_present_value(object_type, raw_value)
+            variant_type = self._data.get_type()
+            set_variant_value_by_type(self._data, variant_type, parsed_value)
+            new_data = self._data
+            cb(Result.OK, new_data)
+        else:
+            cb(Result.NOT_INITIALIZED, self._data)
 
     def __on_write(
         self,

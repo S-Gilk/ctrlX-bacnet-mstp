@@ -126,7 +126,7 @@ class WhoIsScanNode:
 
     def run_device_scan(self):
             # WHO-IS
-            devices = whois(ACTIVE_INI_PATH, timeout=10.0)
+            devices = whois(ACTIVE_INI_PATH)
             print(json.dumps({"whois": devices}), flush=True)
 
             # Provide datalayer nodes for each device ID
