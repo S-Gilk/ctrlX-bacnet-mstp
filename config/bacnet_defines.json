@@ -2,19 +2,19 @@
   "analogInput": {
     "access": "R",
     "bacnet_type": "REAL",
-    "datalayer_type": "FLOAT32",
+    "datalayer_type": "FLOAT64",
     "uninitialized_default": 0.0
   },
   "analogOutput": {
     "access": "R/W",
     "bacnet_type": "REAL",
-    "datalayer_type": "FLOAT32",
+    "datalayer_type": "FLOAT64",
     "uninitialized_default": 0.0
   },
   "analogValue": {
     "access": "R/W",
     "bacnet_type": "REAL",
-    "datalayer_type": "FLOAT32",
+    "datalayer_type": "FLOAT64",
     "uninitialized_default": 0.0
   },
   "binaryInput": {

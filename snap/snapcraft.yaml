@@ -1,6 +1,6 @@
 name: ctrlx-bacnet-mstp
 base: core22
-version: "0.1"
+version: "1.0"
 summary: BACnet MS/TP datalayer interface
 description: |
   ctrlX Data Layer node provider for BACnet MS/TP devices

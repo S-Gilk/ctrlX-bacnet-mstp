@@ -44,7 +44,7 @@ def get_type_address_from_string(typeString):
         case 'STRING': typeAddress = "types/datalayer/string"
         case 'BOOL8': typeAddress = "types/datalayer/bool8"
         case 'UINT32': typeAddress = "types/datalayer/uint32"
-        case 'FLOAT32': typeAddress = "types/datalayer/float32"
+        case 'FLOAT64': typeAddress = "types/datalayer/float64"
         case _:
             print(f"Type address not implemented: {typeString}")
 
