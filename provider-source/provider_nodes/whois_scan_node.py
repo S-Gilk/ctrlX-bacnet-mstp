@@ -21,6 +21,7 @@ from ctrlxdatalayer.metadata_utils import (
 
 from provider_nodes.device_property_node import DevicePropertyNode
 from provider_nodes.discover_scan_node import DiscoverScanNode
+from provider_nodes.bulk_property_read_node import BulkPropertyReadNode
 from helper.node_manager import track_node
 
 from helper.mstp_services import whois, cache_device
@@ -147,7 +148,6 @@ class WhoIsScanNode:
         - vendor_id: int
         - source_mac: Optional[int]
         """
-
         # Provide device scan node
         scanAddress = device_root_path + "/scanObjects"
         scanNode = DiscoverScanNode(self._provider, scanAddress)
@@ -160,6 +160,20 @@ class WhoIsScanNode:
             )
         else:
             track_node(NodeType.DISCOVER_SCAN_NODE, scanNode)
+
+        # Provide read property multiple node
+        readPropertyMultipleAddress = device_root_path + "/readPropertyMultiple"
+        readPropertyMultipleNode = BulkPropertyReadNode(self._provider, readPropertyMultipleAddress)
+        result = readPropertyMultipleNode.register_node()
+        if result != ctrlxdatalayer.variant.Result.OK:
+            print(
+                "ERROR Registering node " + readPropertyMultipleAddress + " failed with:",
+                result,
+                flush=True,
+            )
+        else:
+            track_node(NodeType.READ_PROPERTY_MULTIPLE_NODE, readPropertyMultipleNode)
+
         # build the props dict from whois device structure
         props = {
             "device_instance": device["device_instance"],

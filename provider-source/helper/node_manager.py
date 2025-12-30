@@ -4,6 +4,7 @@ datalayerNodes = {
     "discoverNodes":[],
     "devicePropertyNodes":[],
     "whoIsNodes":[],
+    "readPropertyMultipleNodes" :[],
     "folderNodes":[]
 }
 
@@ -15,6 +16,8 @@ def get_type_string_from_enum(type:NodeType):
             return "devicePropertyNodes"
         case NodeType.WHO_IS_SCAN_NODE:
             return "whoIsNodes"
+        case NodeType.READ_PROPERTY_MULTIPLE_NODE:
+            return "readPropertyMultipleNodes"
         case NodeType.FOLDER_NODE:
             return "folderNodes"
 

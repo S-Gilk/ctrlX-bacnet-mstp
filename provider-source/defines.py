@@ -13,7 +13,8 @@ class NodeType(Enum):
     DEVICE_PROPERTY_NODE = 2
     WHO_IS_SCAN_NODE = 3
     DISCOVER_SCAN_NODE = 4
-    FOLDER_NODE = 5
+    READ_PROPERTY_MULTIPLE_NODE = 5
+    FOLDER_NODE = 6
 
 
 # This should be exposed in the config

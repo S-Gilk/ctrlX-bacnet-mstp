@@ -111,13 +111,13 @@ class DevicePropertyNode:
         address: str,
         cb: NodeCallback,
     ):
-        """__on_browse"""
-        print("__on_browse()",
-              "address:",
-              address,
-              "userdata:",
-              userdata,
-              flush=True)
+        # """__on_browse"""
+        # print("__on_browse()",
+        #       "address:",
+        #       address,
+        #       "userdata:",
+        #       userdata,
+        #       flush=True)
         with Variant() as new_data:
             new_data.set_array_string([])
             cb(Result.OK, new_data)

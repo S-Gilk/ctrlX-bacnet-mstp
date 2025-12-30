@@ -13,7 +13,10 @@ from bacpypes.apdu import (
     WhoIsRequest, IAmRequest,
     ReadPropertyRequest, ReadPropertyACK,
     WritePropertyRequest, SimpleAckPDU,
+    ReadPropertyMultipleRequest, ReadPropertyMultipleACK,
+    ReadAccessSpecification, PropertyReference
 )
+
 from bacpypes.local.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 from bacpypes.constructeddata import Array, Any as AnyCD, AnyAtomic
@@ -177,6 +180,53 @@ def _json_safe(seq):
         except TypeError:
             out.append(str(v))
     return out
+
+def _bacnet_value_to_jsonable(val: Any) -> Any:
+    """
+    Convert BACpypes values to JSON-friendly primitives.
+    Falls back to str() when unknown.
+    """
+    if val is None:
+        return None
+
+    # Already JSON-safe primitives
+    if isinstance(val, (bool, int, float, str)):
+        return val
+
+    # Common BACnet primitives -> friendly representations
+    if isinstance(val, (ObjectIdentifier, Date, Time, OctetString, CharacterString, BitString)):
+        return str(val)
+
+    # BACpypes Array or Python containers
+    if isinstance(val, (list, tuple)):
+        return [_bacnet_value_to_jsonable(x) for x in val]
+
+    # Anything else
+    try:
+        json.dumps(val)
+        return val
+    except TypeError:
+        return str(val)
+
+
+def _cast_out_property_value(apdu, prop_id: str, array_index: Optional[int]):
+    """
+    Match your ReadProperty cast-out behavior (incl. arrays) but reusable for RPM.
+    """
+    dt = get_datatype(apdu.objectIdentifier[0], prop_id)
+    if not dt:
+        # Best effort: just stringify the raw container
+        return _bacnet_value_to_jsonable(apdu)
+
+    if issubclass(dt, Array) and (array_index is not None):
+        if array_index == 0:
+            val = apdu.propertyValue.cast_out(Unsigned)
+        else:
+            val = apdu.propertyValue.cast_out(dt.subtype)
+    else:
+        val = apdu.propertyValue.cast_out(dt)
+
+    return _bacnet_value_to_jsonable(val)
 
 
 # ------------------------- INI / SETUP -------------------------
@@ -467,35 +517,44 @@ def read_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
          prop: str, index: Optional[int] = None) -> Dict[str, Any]:
     """
     Confirmed ReadProperty to a specific MAC address.
+    Returns either:
+      { "address": ..., "object": {...}, "property": ..., "index": ..., "value": ... }
+    or
+      { "error": "<message>" }
     """
     _Core.ensure_started(ini_path)
     app = _Core.app()
 
     obj_id = (obj_type, int(obj_inst))
+
+    # Look up BACnet datatype for this property (required to decode)
     datatype = get_datatype(obj_type, prop)
     if not datatype:
         return {"error": f"invalid property '{prop}' for object type '{obj_type}'"}
 
-    req = ReadPropertyRequest(objectIdentifier=obj_id, propertyIdentifier=prop)
+    # Build the ReadProperty request
+    req = ReadPropertyRequest(
+        objectIdentifier=obj_id,
+        propertyIdentifier=prop,
+    )
     req.pduDestination = Address(int(addr))
     if index is not None:
         req.propertyArrayIndex = int(index)
 
-    iocb = IOCB(req)
-    app.request_io(iocb)
-    iocb.wait()  # block until done
+    # Send via IOCB and wait
+    try:
+        apdu = _request_iocb_blocking(app, req)
+    except Exception as e:
+        return {"error": str(e)}
 
-    if iocb.ioError:
-        return {"error": str(iocb.ioError)}
-
-    apdu = iocb.ioResponse
     if not isinstance(apdu, ReadPropertyACK):
         return {"error": "no ack"}
 
-    # Determine cast type (array index special-case like in sample)
+    # Determine correct cast type (array handling per BACpypes sample)
     dt = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
     if not dt:
         return {"error": "unknown datatype"}
+
     if issubclass(dt, Array) and (apdu.propertyArrayIndex is not None):
         if apdu.propertyArrayIndex == 0:
             val = apdu.propertyValue.cast_out(Unsigned)
@@ -504,7 +563,7 @@ def read_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
     else:
         val = apdu.propertyValue.cast_out(dt)
 
-    # Make it JSON-friendly
+    # Make value JSON-friendly (strings instead of raw objects where needed)
     try:
         json.dumps(val)
         out_val = val
@@ -519,12 +578,176 @@ def read_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
         "value": out_val,
     }
 
+def read_property_multiple(
+    ini_path: str,
+    addr: int,
+    requests: List[Dict[str, Any]],
+    *,
+    timeout: Optional[float] = None,
+) -> Dict[str, Any]:
+    """
+    Confirmed ReadPropertyMultiple to a specific MS/TP MAC address.
+
+    `requests` format (Python):
+      [
+        {
+          "object": {"type": "analogInput", "instance": 1},
+          "properties": [
+            {"id": "presentValue"},
+            {"id": "units"},
+            {"id": "priorityArray", "index": 0},
+          ]
+        },
+        ...
+      ]
+
+    Returns:
+      {
+        "address": <mac>,
+        "results": [
+          {
+            "object": {"type": "...", "instance": 1},
+            "values": [
+              {"property": "...", "index": null, "value": 12.3},
+              {"property": "...", "index": 0, "value": 16},
+              {"property": "...", "index": null, "error": {"class": "...", "code": "..."}},
+            ]
+          },
+          ...
+        ]
+      }
+    """
+    _Core.ensure_started(ini_path)
+    app = _Core.app()
+
+    read_access_specs: List[ReadAccessSpecification] = []
+
+    for entry in requests or []:
+        obj = entry.get("object") or {}
+        obj_type = obj.get("type")
+        obj_inst = obj.get("instance")
+        props = entry.get("properties") or []
+
+        if not obj_type or obj_inst is None:
+            continue
+
+        prop_refs: List[PropertyReference] = []
+        for p in props:
+            prop_id = p.get("id") or p.get("property")  # allow either key
+            if not prop_id:
+                continue
+
+            pr = PropertyReference(propertyIdentifier=str(prop_id))
+            if "index" in p and p["index"] is not None:
+                pr.propertyArrayIndex = int(p["index"])
+
+            prop_refs.append(pr)
+
+        if not prop_refs:
+            continue
+
+        ras = ReadAccessSpecification(
+            objectIdentifier=(str(obj_type), int(obj_inst)),
+            listOfPropertyReferences=prop_refs,
+        )
+        read_access_specs.append(ras)
+
+    if not read_access_specs:
+        return {"error": "no valid RPM specs"}
+
+    # Construct request
+    req = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_specs)
+    req.pduDestination = Address(int(addr))
+
+    # Send via IOCB and wait
+    try:
+        apdu = _request_iocb_blocking(app, req, timeout=timeout)
+    except Exception as e:
+        return {"error": str(e)}
+
+    if not isinstance(apdu, ReadPropertyMultipleACK):
+        return {"error": "no rpm ack"}
+
+    out: Dict[str, Any] = {"address": int(addr), "results": []}
+
+    # Parse listOfReadAccessResults
+    for rar in getattr(apdu, "listOfReadAccessResults", []) or []:
+        obj_type, obj_inst = rar.objectIdentifier
+        obj_out = {
+            "object": {"type": str(obj_type), "instance": int(obj_inst)},
+            "values": [],
+        }
+
+        for elem in getattr(rar, "listOfResults", []) or []:
+            prop_id = getattr(elem, "propertyIdentifier", None)
+            idx = getattr(elem, "propertyArrayIndex", None)
+
+            # Success path (readResult)
+            if hasattr(elem, "readResult") and elem.readResult is not None:
+                rr = elem.readResult
+
+                if hasattr(rr, "propertyValue") and rr.propertyValue is not None:
+                    # Reuse the same cast logic as read_property()
+                    val = None
+                    try:
+                        dt = get_datatype(obj_type, prop_id)
+                        if dt:
+                            if issubclass(dt, Array) and (idx is not None):
+                                if int(idx) == 0:
+                                    val = rr.propertyValue.cast_out(Unsigned)
+                                else:
+                                    val = rr.propertyValue.cast_out(dt.subtype)
+                            else:
+                                val = rr.propertyValue.cast_out(dt)
+                        else:
+                            val = rr.propertyValue  # fallback
+                    except Exception:
+                        val = rr.propertyValue
+
+                    obj_out["values"].append(
+                        {
+                            "property": str(prop_id),
+                            "index": (int(idx) if idx is not None else None),
+                            "value": _bacnet_value_to_jsonable(val),
+                        }
+                    )
+                    continue
+
+            # Error path (propertyAccessError)
+            if hasattr(elem, "propertyAccessError") and elem.propertyAccessError is not None:
+                pae = elem.propertyAccessError
+                err_class = getattr(pae.errorType, "errorClass", None)
+                err_code = getattr(pae.errorType, "errorCode", None)
+                obj_out["values"].append(
+                    {
+                        "property": str(prop_id),
+                        "index": (int(idx) if idx is not None else None),
+                        "error": {"class": str(err_class), "code": str(err_code)},
+                    }
+                )
+                continue
+
+            # Unknown/unexpected element
+            obj_out["values"].append(
+                {
+                    "property": str(prop_id),
+                    "index": (int(idx) if idx is not None else None),
+                    "error": {"class": "unknown", "code": "unknown"},
+                }
+            )
+
+        out["results"].append(obj_out)
+
+    return out
+
 
 def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
           prop: str, value: str, index: Optional[int] = None,
           priority: Optional[int] = None) -> Dict[str, Any]:
     """
-    Confirmed WriteProperty. 'value' follows the sample's encoding:
+    Confirmed WriteProperty.
+
+    'value' follows the Misty console encoding:
       - 'null' for Null
       - For AnyAtomic: '<code>:<val>' where code in {b,u,i,r,d,o,c,bs,date,time,id}
       - For plain atomic types, provide the literal (e.g., '42', '3.14')
@@ -537,8 +760,7 @@ def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
     if not dt:
         return {"error": f"invalid property '{prop}' for object type '{obj_type}'"}
 
-    # parse / cast like the console sample
-    enc_val: Any
+    # --- encode the Python/string "value" into a BACnet primitive ---
     try:
         if value == "null":
             enc_val = Null()
@@ -560,9 +782,9 @@ def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
             caster = lut[code]
             enc_val = caster(raw) if callable(caster) else caster(raw)
         elif issubclass(dt, Atomic):
-            if dt is Integer or dt is Unsigned:
+            if dt in (Integer, Unsigned):
                 enc_val = dt(int(value))
-            elif dt is Real or dt is Double:
+            elif dt in (Real, Double):
                 enc_val = dt(float(value))
             else:
                 enc_val = dt(value)
@@ -575,10 +797,11 @@ def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
                 return {"error": f"unsupported array subtype for {prop}"}
         else:
             # best effort
-            enc_val = dt(value)  # may raise
+            enc_val = dt(value)
     except Exception as e:
         return {"error": f"value cast error: {e}"}
 
+    # --- build WritePropertyRequest ---
     req = WritePropertyRequest(
         objectIdentifier=obj_id,
         propertyIdentifier=prop,
@@ -589,110 +812,143 @@ def write_property(ini_path: str, addr: int, obj_type: str, obj_inst: int,
         req.propertyValue.cast_in(enc_val)
     except Exception as e:
         return {"error": f"WriteProperty cast_in error: {e}"}
+
     if index is not None:
         req.propertyArrayIndex = int(index)
     if priority is not None:
         req.priority = int(priority)
 
-    iocb = IOCB(req)
-    app.request_io(iocb)
-    iocb.wait()
+    # --- send via IOCB and wait ---
+    try:
+        apdu = _request_iocb_blocking(app, req)
+    except Exception as e:
+        return {"error": f"I/O ERROR--{e}"}
 
-    if iocb.ioError:
-        return {"error": str(iocb.ioError)}
-    if not isinstance(iocb.ioResponse, SimpleAckPDU):
+    if not isinstance(apdu, SimpleAckPDU):
         return {"error": "no simple ack"}
+
     return {"ack": True}
 
 
 def discover(ini_path: str, addr_mac: int, device_id: int) -> Dict[str, Any]:
     """
-    Walk a device's objectList via repeated ReadProperty requests.
-    Returns: {"object_list": [...]} or {"error": "...", "object_list": [...]}
+    Walk a device's objectList using simple synchronous reads.
+
+    Returns:
+      {"object_list": [...]} on success
+      {"error": "<message>", "object_list": [...partial...]} on failure
     """
     _Core.ensure_started(ini_path)
     app = _Core.app()
     timeout = float(getattr(_Core, "_config", {}).get("_discover_timeout", 30.0))
 
-    print("discover timeout:" + str(timeout), flush=True)
     results: List[Any] = []
-    index_queue: List[int] = [0]   # start with index 0 to get count
-    state = {"first": True}        # avoid nonlocal scoping issues
-    done = threading.Event()
-    error_holder: List[str] = []
+    error_msg: Optional[str] = None
 
-    def _send_next():
-        if not index_queue:
-            done.set()
-            return
-
-        idx = index_queue.pop(0)
-        req = ReadPropertyRequest(
+    # 1) Read index 0 to get count
+    try:
+        req0 = ReadPropertyRequest(
             objectIdentifier=("device", int(device_id)),
             propertyIdentifier="objectList",
         )
-        req.pduDestination = Address(int(addr_mac))
-        req.propertyArrayIndex = idx
+        req0.pduDestination = Address(int(addr_mac))
+        req0.propertyArrayIndex = 0
 
-        iocb = IOCB(req)
+        apdu0 = _request_iocb_blocking(app, req0, timeout=timeout)
+        dt0 = get_datatype(apdu0.objectIdentifier[0], apdu0.propertyIdentifier)
+        if not dt0 or not issubclass(dt0, Array):
+            return {"error": "objectList is not an array", "object_list": []}
 
-        def _on_reply(i: IOCB):
-            try:
-                if i.ioError:
-                    error_holder.append(str(i.ioError))
-                    done.set(); return
+        count = apdu0.propertyValue.cast_out(Unsigned)
+        total = int(count)
+    except Exception as e:
+        return {"error": str(e), "object_list": []}
 
-                apdu = i.ioResponse
-                if not isinstance(apdu, ReadPropertyACK):
-                    error_holder.append("not an ack")
-                    done.set(); return
+    # 2) Read indices 1..count
+    for idx in range(1, total + 1):
+        try:
+            req = ReadPropertyRequest(
+                objectIdentifier=("device", int(device_id)),
+                propertyIdentifier="objectList",
+            )
+            req.pduDestination = Address(int(addr_mac))
+            req.propertyArrayIndex = idx
 
-                dt = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
-                if not dt:
-                    error_holder.append("unknown datatype for objectList")
-                    done.set(); return
+            apdu = _request_iocb_blocking(app, req, timeout=timeout)
+            dt = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
+            if not dt or not issubclass(dt, Array):
+                error_msg = "unexpected datatype for objectList"
+                break
 
-                # array handling: index 0 is count, others are ObjectIdentifier entries
-                if issubclass(dt, Array) and (apdu.propertyArrayIndex is not None):
-                    if apdu.propertyArrayIndex == 0:
-                        count = apdu.propertyValue.cast_out(Unsigned)
-                        # enqueue 1..count
-                        index_queue[:] = list(range(1, int(count) + 1))
-                        state["first"] = False
-                    else:
-                        value = apdu.propertyValue.cast_out(dt.subtype)
-                        results.append(value)
-                else:
-                    # some stacks return the whole array when no index is given;
-                    # we didn't ask for that, but handle gracefully
-                    value = apdu.propertyValue.cast_out(dt)
-                    # coerce to list of object identifiers if possible
-                    try:
-                        results.extend(list(value))
-                    except Exception:
-                        results.append(value)
+            value = apdu.propertyValue.cast_out(dt.subtype)
+            results.append(value)
+        except Exception as e:
+            error_msg = str(e)
+            break
 
-                # chain the next read
-                deferred(_send_next)
-
-            except Exception as e:
-                error_holder.append(str(e))
-                done.set()
-
-        iocb.add_callback(_on_reply)
-        app.request_io(iocb)
-
-    # kick it off
-    deferred(_send_next)
-
-    # wait until done or timeout
-    if not done.wait(timeout=float(timeout)):
-        return {"error": "discover timeout", "object_list": _json_safe(results)}
-
-    if error_holder:
-        return {"error": error_holder[0], "object_list": _json_safe(results)}
+    if error_msg:
+        return {"error": error_msg, "object_list": _json_safe(results)}
 
     return {"object_list": _json_safe(results)}
+
+def handle_json_command(command_json: str) -> Dict[str, Any]:
+    """
+    Input: JSON string describing a command.
+    Output: Python dict (JSON-serializable).
+    """
+    cmd = json.loads(command_json)
+    op = (cmd.get("cmd") or cmd.get("op") or "").lower()
+
+    ini_path = cmd.get("ini_path") or cmd.get("ini") or "bc.ini"
+
+    if op in ("read", "read_property", "rp"):
+        return read_property(
+            ini_path,
+            addr=int(cmd["addr"]),
+            obj_type=str(cmd["object"]["type"]),
+            obj_inst=int(cmd["object"]["instance"]),
+            prop=str(cmd["property"]),
+            index=cmd.get("index"),
+        )
+
+    if op in ("write", "write_property", "wp"):
+        return write_property(
+            ini_path,
+            addr=int(cmd["addr"]),
+            obj_type=str(cmd["object"]["type"]),
+            obj_inst=int(cmd["object"]["instance"]),
+            prop=str(cmd["property"]),
+            value=str(cmd["value"]),
+            index=cmd.get("index"),
+            priority=cmd.get("priority"),
+        )
+
+    if op in ("rpm", "read_property_multiple", "readmultiple"):
+        return read_property_multiple(
+            ini_path,
+            addr=int(cmd["addr"]),
+            requests=cmd.get("requests") or [],
+            timeout=cmd.get("timeout"),
+        )
+
+    if op in ("whois",):
+        return {"devices": whois(ini_path)}
+
+    if op in ("discover",):
+        return discover(
+            ini_path,
+            addr_mac=int(cmd["addr"]),
+            device_id=int(cmd["device_id"]),
+        )
+
+    return {"error": f"unknown cmd '{op}'"}
+
+
+def handle_json_command_str(command_json: str) -> str:
+    """
+    Same as handle_json_command, but returns a JSON string.
+    """
+    return json.dumps(handle_json_command(command_json))
 
 def _mstp_port_online(port) -> bool:
     """
@@ -738,6 +994,20 @@ def parse_property_path_for_ids(path: str) -> Tuple[Optional[int], Optional[str]
     except Exception:
         return None, None, None
     
+def parse_device_path_for_id(path: str) -> Optional[int]:
+    """
+    Extract (deviceId) from a path:
+      .../devices/<deviceId>/readPropertyMultiple
+    Returns (None) if not parseable.
+    """
+    parts = [p for p in path.split("/") if p]
+    try:
+        i = parts.index("devices")
+        device_id = int(parts[i + 1])
+        return device_id
+    except Exception:
+        return None
+    
 def parse_present_value(obj_type: str, raw_value: Any) -> Any:
     """
     Convert a raw 'presentValue' returned by ReadProperty into a normalized Python value
@@ -776,3 +1046,25 @@ def encode_present_value_for_write(obj_type: str, value: Any):
     
     return value
 
+def _request_iocb_blocking(app, req, timeout: Optional[float] = None):
+    """
+    Send a request via IOCB and wait for a response (or error).
+
+    This is the only place that deals directly with IOCB:
+      - create IOCB
+      - app.request_io(iocb)
+      - iocb.wait()
+      - raise on ioError
+      - return the APDU
+
+    Everyone else just calls this like a simple RPC.
+    """
+    iocb = IOCB(req)
+    app.request_io(iocb)
+    iocb.wait(timeout=timeout)
+
+    if iocb.ioError:
+        # Bubble up as a normal Python exception so callers can catch/format
+        raise iocb.ioError
+
+    return iocb.ioResponse
